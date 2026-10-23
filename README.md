@@ -5,6 +5,7 @@ dsh Web 全局用量统计插件：在左侧栏"设置"按钮旁显示用量组�
 ## 功能特性
 
 - **实时累计**：订阅 `session/event`，按 `(turn, step)` 去重计数每次 provider 请求的用量样本，并记录逐请求明细（时间 / 模型 / 会话 / 输入 / 缓存读 / 缓存写 / 输出）；
+- **实时速度**：组件支持 `{tokensPerSecond}` 占位符与卡片"实时速度"项——滑动窗口（默认 60 秒，可在 设置 → 用量统计 → 速度窗口 调整 10–600 秒）内消耗的 token 总量 ÷ 窗口秒数，单位 token/s；
 - **模型归属**：从 `request/header` 快照追踪每个请求使用的模型，支撑模型分布统计；
 - **可配置侧边栏组件**：设置 → 用量统计 中可调整——
   - **通用**：显示模式（文字 / 卡片）、位置（设置按钮上方 / 下方）；
@@ -13,7 +14,7 @@ dsh Web 全局用量统计插件：在左侧栏"设置"按钮旁显示用量组�
   - 修改实时生效（约 5 秒内），无需重启；
 - **统计面板**：点击组件弹出面板——时间范围选择（今日 / 近7天 / 近30天 / 本月 / 全部）、**提供方筛选**（全部 / 各提供方，可查看单一提供方用量）、概览、模型分布、Token 使用趋势图（SVG）、用量明细表（含首字节 / 总耗时）；
 - **DeepSeek 平台悬停提示**：鼠标悬停侧边栏组件（文字/卡片/收起图标）时浮动显示 DeepSeek 开放平台数据——剩余金额、今日消费、今日 Token、今日请求。余额来自官方 `/user/balance`（读取 `DEEPSEEK_API_KEY`）；配置 `DEEPSEEK_PLATFORM_TOKEN` 后今日消费/Token 使用平台官方明细，否则今日消费为余额差估算（带 `≈`），Token 回退为本地统计。数据只在悬停时展示，**不进统计弹窗**；
-- **历史回填 + 增量扫描**：启动后扫描 `$DSH_HOME/sessions` 下全部会话日志（zstd 多帧拼接，按帧切分后逐帧解压），只处理越过持久化 seq 水位的事件，与实时计数天然去重；此后每 5 分钟轻扫一次，覆盖其他进程写入的会话；
+- **历史回填 + 增量扫描**：启动后扫描 `$DSH_HOME/sessions` 下全部会话日志（zstd 多帧拼接，按帧切分后逐帧解压），只处理越过持久化 seq 水位的事件，与实时计数天然去重；此后每 60 秒轻扫一次，覆盖其他进程写入的会话（含 headless 定时任务），使其实时速度 / 用量近实时可见；
 - **持久化**：聚合写入 `$DSH_HOME/stats/store.json`，明细写入 `$DSH_HOME/stats/requests.json`，组件设置写入 `$DSH_HOME/stats/settings.json`（均防抖原子写入），重启不丢；
 - **只读安全**：不修改任何会话数据，对模型体验 / KV Cache 零影响。
 
@@ -42,8 +43,9 @@ dsh Web 全局用量统计插件：在左侧栏"设置"按钮旁显示用量组�
 | `{todayOutput}` | 今日输出 | `{totalOutput}` | 总输出 |
 | `{todayCacheRead}` | 今日缓存读 | `{totalCacheRead}` | 总缓存读 |
 | `{todayCacheWrite}` | 今日缓存写 | `{totalCacheWrite}` | 总缓存写 |
+| `{tokensPerSecond}` | 实时速度（token/s） | | |
 
-默认模板：`今日请求：{todayRequests} | 总请求：{totalRequests} | 今日Token：{todayTokens} | 总Token：{totalTokens}`
+默认模板：`今日请求：{todayRequests} | 总请求：{totalRequests} | 今日Token：{todayTokens} | 总Token：{totalTokens}`，例如追加 ` | 实时速度：{tokensPerSecond} token/s` 即可显示实时消耗速度。
 
 ## DeepSeek 平台数据（悬停提示）
 
@@ -164,6 +166,7 @@ curl -X POST http://127.0.0.1:3080/stats/api/usage \
 
 - **请求**：每次产生 provider 用量样本的 LLM 请求（`assistant/message` 携带 `usage`，或 `assistant/chunk` 的 usage 分片），按 `(turn, step)` 去重；同一请求的重复样本按 last-wins 替换，不重复计数；
 - **Token**：`inputTokens + cacheReadTokens + cacheWriteTokens + outputTokens`（与 dsh-token-meter 的 `usageTokens()` 一致；reasoning 已含在 output 内，不重复计算）；
+- **实时速度**：最近 N 秒（`speedWindow`，默认 60 秒）内逐请求明细的 token 总量 ÷ N，单位 token/s；明细被裁剪（上限 3 万条）或尚未回填时按现有明细计算，空闲时为 0；
 - **今日**：按事件时间戳的本地日期（`YYYY-MM-DD`）分桶。
 
 ## 卸载
