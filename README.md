@@ -5,7 +5,7 @@ dsh Web 全局用量统计插件：在左侧栏"设置"按钮旁显示用量组�
 ## 功能特性
 
 - **实时累计**：订阅 `session/event`，按 `(turn, step)` 去重计数每次 provider 请求的用量样本，并记录逐请求明细（时间 / 模型 / 会话 / 输入 / 缓存读 / 缓存写 / 输出）；
-- **实时速度**：组件支持 `{tokensPerSecond}` 占位符与卡片"实时速度"项——滑动窗口（默认 60 秒，可在 设置 → 用量统计 → 速度窗口 调整 10–600 秒）内消耗的 token 总量 ÷ 窗口秒数，单位 token/s；
+- **实时速度**：组件支持 `{tokensPerSecond}` 占位符与卡片"实时速度"项——滑动窗口（默认 60 秒，可在 设置 → 用量统计 → 速度窗口 调整 10–600 秒）内消耗的 token 总量 ÷ 窗口秒数，数值自带 `tok/s` 单位；
 - **模型归属**：从 `request/header` 快照追踪每个请求使用的模型，支撑模型分布统计；
 - **可配置侧边栏组件**：设置 → 用量统计 中可调整——
   - **通用**：显示模式（文字 / 卡片）、位置（设置按钮上方 / 下方）；
@@ -43,9 +43,9 @@ dsh Web 全局用量统计插件：在左侧栏"设置"按钮旁显示用量组�
 | `{todayOutput}` | 今日输出 | `{totalOutput}` | 总输出 |
 | `{todayCacheRead}` | 今日缓存读 | `{totalCacheRead}` | 总缓存读 |
 | `{todayCacheWrite}` | 今日缓存写 | `{totalCacheWrite}` | 总缓存写 |
-| `{tokensPerSecond}` | 实时速度（token/s） | | |
+| `{tokensPerSecond}` | 实时速度（自带 tok/s 单位） | | |
 
-默认模板：`今日请求：{todayRequests} | 总请求：{totalRequests} | 今日Token：{todayTokens} | 总Token：{totalTokens}`，例如追加 ` | 实时速度：{tokensPerSecond} token/s` 即可显示实时消耗速度。
+默认模板：`今日请求：{todayRequests} | 总请求：{totalRequests} | 今日Token：{todayTokens} | 总Token：{totalTokens}`，例如追加 ` | 实时速度：{tokensPerSecond}` 即可显示实时消耗速度。
 
 ## DeepSeek 平台数据（悬停提示）
 
@@ -166,7 +166,7 @@ curl -X POST http://127.0.0.1:3080/stats/api/usage \
 
 - **请求**：每次产生 provider 用量样本的 LLM 请求（`assistant/message` 携带 `usage`，或 `assistant/chunk` 的 usage 分片），按 `(turn, step)` 去重；同一请求的重复样本按 last-wins 替换，不重复计数；
 - **Token**：`inputTokens + cacheReadTokens + cacheWriteTokens + outputTokens`（与 dsh-token-meter 的 `usageTokens()` 一致；reasoning 已含在 output 内，不重复计算）；
-- **实时速度**：最近 N 秒（`speedWindow`，默认 60 秒）内逐请求明细的 token 总量 ÷ N，单位 token/s；明细被裁剪（上限 3 万条）或尚未回填时按现有明细计算，空闲时为 0；
+- **实时速度**：最近 N 秒（`speedWindow`，默认 60 秒）内逐请求明细的 token 总量 ÷ N，数值自带 `tok/s` 单位；明细被裁剪（上限 3 万条）或尚未回填时按现有明细计算，空闲时为 0；
 - **今日**：按事件时间戳的本地日期（`YYYY-MM-DD`）分桶。
 
 ## 卸载
